@@ -2,126 +2,115 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import date
+from streamlit_barcode_reader import streamlit_barcode_reader
 
-# --- CONFIGURATION & LOGO ---
+# --- CONFIGURATION ---
 st.set_page_config(page_title="DIVINE LIBRARY", layout="wide")
 
-# Custom CSS for Gradient Background & Styling
+# Dark Style CSS
 st.markdown("""
     <style>
-    .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-        color: #ffffff;
-    }
-    /* Sidebar styling for dark theme */
-    [data-testid="stSidebar"] {
-        background-color: #1e293b;
-        border-right: 1px solid #334155;
-    }
-    /* Input box and text adjustments for readability */
-    .stTextInput>div>div>input, .stSelectbox>div>div>select {
-        background-color: #1e293b;
-        color: white;
-    }
-    .main-logo {
-        font-size: 20px;
-        font-weight: bold;
-        color: #38BDF8;
-        border: 2px solid #38BDF8;
-        padding: 5px 10px;
-        border-radius: 8px;
-        display: inline-block;
-        BACKGROUND-COLOR:RGBA(56,189,248,0.1);
-    }
-    H1,H2,H3,P{
-        COLOR: #F8FACFC !IMPORTANT;
-    }
+    .stApp { background: linear-gradient(135deg, #050a14 0%, #0f172a 100%); color: white; }
+    .main-logo { font-size: 20px; font-weight: bold; color: #38bdf8; border: 2px solid #38bdf8; padding: 5px 10px; border-radius: 8px; display: inline-block; }
+    .stButton>button { width: 100%; height: 60px; font-size: 22px; font-weight: bold; border-radius: 12px; }
+    .issue-btn button { background-color: #e11d48 !important; color: white !important; }
+    .receive-btn button { background-color: #10b981 !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# Top Left Logo (Jitendra Thakur)
 st.markdown('<div class="main-logo">👤 JITENDRA THAKUR</div>', unsafe_allow_html=True)
-st.title("📚 DIVINE LIBRARY")
+st.title("📚 DIVINE LIBRARY - PRO SYSTEM")
 
 # --- DATABASE SETUP ---
-FILE_NAME = "divine_library_v4.csv"
-cols = ["Book Name", "Location", "Status", "Borrower Name", "Mobile", "Address", "Issue Date", "Return Date"]
+FILE_NAME = "divine_library_v6.csv"
+cols = ["Barcode", "Book Name", "Location", "Status", "Borrower Name", "Mobile", "Issue Date", "Return Date"]
 
 if not os.path.exists(FILE_NAME):
     df = pd.DataFrame(columns=cols)
     df.to_csv(FILE_NAME, index=False)
-
 df = pd.read_csv(FILE_NAME)
 
-# --- ADMIN LOGIN CHECK ---
-# Isse sirf aap (Admin) hi entry/edit kar payenge
-is_admin = False
+# --- SIDEBAR: ADMIN PANEL ---
 with st.sidebar:
-    st.header("🔐 Admin Login")
-    admin_pass = st.text_input("Admin Password", type="password")
-    if admin_pass == st.secrets["password"]:
-        is_admin = True
-        st.success("Welcome, Jitendra!")
-    elif admin_pass:
-        st.error("Access Denied")
-
-# --- ADMIN PANEL (ONLY FOR JITENDRA) ---
-if is_admin:
-    st.sidebar.markdown("---")
-    st.sidebar.header("📋 Book Entry/Update")
+    st.header("🔐 Admin Access")
+    admin_pass = st.text_input("Password", type="password")
+    is_admin = (admin_pass == st.secrets["password"])
     
-    all_books = ["-- Nayi Kitab Add Karein --"] + sorted(df["Book Name"].unique().tolist())
-    selected_book = st.sidebar.selectbox("Kitab Chunein", all_books)
+    if is_admin:
+        st.success("Welcome, Jitendra!")
+        st.markdown("---")
+        st.subheader("🆕 Add New Book")
+        with st.form("new_book"):
+            nbc = st.text_input("Barcode ID").upper()
+            nnm = st.text_input("Book Name").upper()
+            nlc = st.text_input("Location").upper()
+            if st.form_submit_button("Register"):
+                new_row = pd.DataFrame([[nbc, nnm, nlc, "Available", "", "", "", ""]], columns=cols)
+                df = pd.concat([df, new_row], ignore_index=True)
+                df.to_csv(FILE_NAME, index=False)
+                st.success("Kitab register ho gayi!")
+                st.rerun()
 
-    if selected_book == "-- Nayi Kitab Add Karein --":
-        name = st.sidebar.text_input("Kitab ka Naam (Automatic CAPITAL)").upper() # Always Capital
-        existing_data = None
+# --- 1. SEARCH SECTION (LAPTOP) ---
+st.header("🔍 1. Search Book (Laptop)")
+search_q = st.text_input("Kitab ka Naam ya Location dhoondein...").upper()
+if search_q:
+    results = df[df['Book Name'].str.contains(search_q, na=False) | df['Location'].str.contains(search_q, na=False)]
+    st.dataframe(results[["Book Name", "Location", "Status", "Return Date"]], use_container_width=True)
+
+st.markdown("---")
+
+# --- 2. SCAN SECTION (MOBILE) ---
+st.header("📲 2. Scan Barcode (Mobile)")
+st.write("Camera ke saamne Barcode laayein ya manual likhein:")
+
+# Mobile Camera Scanner
+scanned_code = streamlit_barcode_reader(key='reader')
+manual_bc = st.text_input("Ya Barcode manually likhein...").upper()
+final_barcode = scanned_code if scanned_code else manual_bc
+
+if final_barcode:
+    match = df[df['Barcode'] == str(final_barcode)]
+    if not match.empty:
+        book = match.iloc[0]
+        st.info(f"KITAB: **{book['Book Name']}** | LOCATION: **{book['Location']}**")
+        
+        if is_admin:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown('<div class="issue-btn">', unsafe_allow_html=True)
+                if st.button("ISSUE (Dena)"): st.session_state.mode = "ISSUE"
+                st.markdown('</div>', unsafe_allow_html=True)
+            with col2:
+                st.markdown('<div class="receive-btn">', unsafe_allow_html=True)
+                if st.button("RECEIVE (Wapas Lena)"): st.session_state.mode = "RECEIVE"
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            if 'mode' in st.session_state:
+                with st.form("action_form"):
+                    if st.session_state.mode == "ISSUE":
+                        b_name = st.text_input("Student Name").upper()
+                        b_mob = st.text_input("Mobile No")
+                        r_date = st.date_input("Return Date")
+                        if st.form_submit_button("Confirm Issue"):
+                            df.loc[df['Barcode'] == str(final_barcode), ["Status", "Borrower Name", "Mobile", "Issue Date", "Return Date"]] = ["Issued", b_name, b_mob, date.today(), r_date]
+                            df.to_csv(FILE_NAME, index=False)
+                            st.success("Kitab Issue ho gayi!")
+                            del st.session_state.mode
+                            st.rerun()
+                    elif st.session_state.mode == "RECEIVE":
+                        if st.form_submit_button("Confirm Return"):
+                            df.loc[df['Barcode'] == str(final_barcode), ["Status", "Borrower Name", "Mobile", "Issue Date", "Return Date"]] = ["Available", "", "", "", ""]
+                            df.to_csv(FILE_NAME, index=False)
+                            st.success("Kitab wapas mil gayi!")
+                            del st.session_state.mode
+                            st.rerun()
+        else:
+            st.warning("Admin login karein update karne ke liye.")
     else:
-        name = selected_book
-        existing_data = df[df["Book Name"] == name].iloc[0]
+        st.error("Ye Barcode register nahi hai.")
 
-    loc = st.sidebar.text_input("Shelf/Row No.", value=str(existing_data["Location"]) if existing_data is not None else "").upper()
-    status = st.sidebar.selectbox("Status", ["Available", "Issued"], 
-                                 index=0 if existing_data is None or existing_data["Status"] == "Available" else 1)
-
-    b_name, b_mobile, b_addr, b_issue, b_return = "", "", "", "", ""
-    if status == "Issued":
-        b_name = st.sidebar.text_input("Student Name", value=existing_data["Borrower Name"] if existing_data is not None else "").upper()
-        b_mobile = st.sidebar.text_input("Mobile No", value=existing_data["Mobile"] if existing_data is not None else "")
-        b_addr = st.sidebar.text_area("Address", value=existing_data["Address"] if existing_data is not None else "").upper()
-        b_issue = st.sidebar.date_input("Issue Date", date.today())
-        b_return = st.sidebar.date_input("Return Date")
-
-    if st.sidebar.button("Save Record"):
-        if name:
-            df = df[df["Book Name"] != name] # Remove old entry
-            new_row = pd.DataFrame([[name, loc, status, b_name, b_mobile, b_addr, b_issue, b_return]], columns=cols)
-            df = pd.concat([df, new_row], ignore_index=True)
-            df.to_csv(FILE_NAME, index=False)
-            st.sidebar.success(f"{name} Updated!")
-            st.rerun()
-
-# --- PUBLIC VIEW (FOR EVERYONE) ---
-st.header("🔍 Dynamic Search")
-search_query = st.text_input("Search by Book Name or Location...", "").upper()
-
-# Filter data dynamically
-if search_query:
-    filtered_df = df[df['Book Name'].str.contains(search_query, na=False) | 
-                     df['Location'].str.contains(search_query, na=False)]
-else:
-    filtered_df = df
-
-# Security: Other person sees only restricted columns
-if is_admin:
-    st.subheader("Full Inventory (Admin View)")
-    st.dataframe(filtered_df)
-else:
-    st.subheader("Library Catalog")
-    # Hide private details from users
-    public_cols = ["Book Name", "Location", "Status", "Return Date"]
-    st.table(filtered_df[public_cols])
-
-if not is_admin:
-    st.info("ℹ️ Student details are hidden. Login as admin to manage entries.")
-
+# --- PUBLIC VIEW ---
+st.markdown("---")
+st.subheader("📚 Library Status")
+st.table(df[["Book Name", "Location", "Status", "Return Date"]].head(15))
