@@ -1,3 +1,13 @@
+from streamlit_gsheets import GSheetsConnection
+
+# Connection create karein
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Data padhne ke liye
+df = conn.read(ttl="1m") # Har 1 minute mein data refresh hoga
+
+# Data save karne ke liye (Jab aap manual entry karenge)
+# conn.update(worksheet="Sheet1", data=df)
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 import pandas as pd
@@ -116,3 +126,4 @@ else:
 
 st.markdown("---")
 st.caption(f"Divine Library | {datetime.now().strftime('%d-%b-%Y')}")
+
