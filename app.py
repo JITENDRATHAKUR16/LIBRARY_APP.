@@ -10,16 +10,31 @@ st.set_page_config(page_title="DIVINE LIBRARY", layout="wide")
 st.markdown("""
     <style>
     .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        color: #ffffff;
+    }
+    /* Sidebar styling for dark theme */
+    [data-testid="stSidebar"] {
+        background-color: #1e293b;
+        border-right: 1px solid #334155;
+    }
+    /* Input box and text adjustments for readability */
+    .stTextInput>div>div>input, .stSelectbox>div>div>select {
+        background-color: #1e293b;
+        color: white;
     }
     .main-logo {
         font-size: 20px;
         font-weight: bold;
-        color: #1E3A8A;
-        border: 2px solid #1E3A8A;
+        color: #38BDF8;
+        border: 2px solid #38BDF8;
         padding: 5px 10px;
         border-radius: 8px;
         display: inline-block;
+        BACKGROUND-COLOR:RGBA(56,189,248,0.1);
+    }
+    H1,H2,H3,P{
+        COLOR: #F8FACFC !IMPORTANT;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -109,3 +124,4 @@ else:
 
 if not is_admin:
     st.info("ℹ️ Student details are hidden. Login as admin to manage entries.")
+
