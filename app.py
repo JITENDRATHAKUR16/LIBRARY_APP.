@@ -30,7 +30,7 @@ if not check_password():
     st.stop()
 
 # --- AAPKA ASLI APP CODE YAHAN SE SHURU HOTA HAI ---
-st.title("📚 Meri Private Library Manager")
+st.title("📚 LETSEXCELEXPERTZS'S Library Manager")
 
 FILE_NAME = "library_data.csv"
 if not os.path.exists(FILE_NAME):
@@ -58,4 +58,5 @@ if search:
     parinaam = df[df['Kitab ka Naam'].str.contains(search, case=False, na=False)]
     st.table(parinaam)
 else:
+
     st.dataframe(df)
