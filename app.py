@@ -1,9 +1,17 @@
 import streamlit as st
 from streamlit_qrcode_scanner import qrcode_scanner
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
 st.set_page_config(page_title="DIVINE LIBRARY", layout="wide")
+
+# --- CUSTOM STYLING ---
+st.markdown("""
+    <style>
+    .metric-card { background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #007bff; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+    .admin-header { color: #1E3A8A; font-weight: bold; border-bottom: 2px solid #1E3A8A; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- TOP NAMES SECTION ---
 col_l, col_r = st.columns([1, 1])
@@ -12,8 +20,7 @@ with col_l:
 with col_r:
     st.markdown("<h3 style='text-align: right;'>👤 KRISHNA SHARMA</h3>", unsafe_allow_html=True)
 
-# --- SAMPLE INVENTORY (Database) ---
-# Jab aap Google Sheets connect karenge, toh ye data wahan se aayega
+# --- DATABASE / INVENTORY ---
 if "inventory" not in st.session_state:
     st.session_state.inventory = pd.DataFrame({
         "Book Name": ["The Alchemist", "Think and Grow Rich", "Power of Habit", "Deep Work", "Atomic Habits"],
@@ -21,82 +28,91 @@ if "inventory" not in st.session_state:
         "Location": ["Shelf A1", "Shelf B2", "Shelf C1", "Shelf A2", "Shelf B1"]
     })
 
-# --- SESSION STATE FOR LOGIN ---
+# --- ADMIN SECTION (Attractive Sidebar) ---
+st.sidebar.markdown("<h2 class='admin-header'>🔐 ADMIN CENTRAL</h2>", unsafe_allow_html=True)
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- SIDEBAR LOGIN ---
-st.sidebar.header("Admin Access")
 if not st.session_state.logged_in:
-    password_input = st.sidebar.text_input("Enter Admin Password:", type="password")
-    if st.sidebar.button("Login"):
-        if password_input == "admin123":
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.sidebar.error("Galat Password!")
+    with st.sidebar:
+        pass_input = st.text_input("Admin Password:", type="password")
+        if st.button("Unlock Admin Access"):
+            if pass_input == "admin123":
+                st.session_state.logged_in = True
+                st.rerun()
+            else:
+                st.error("Invalid Key ❌")
 else:
-    st.sidebar.success("Admin Logged In ✅")
-    if st.sidebar.button("Logout"):
+    st.sidebar.success("Logged In: Jitendra Thakur ✅")
+    if st.sidebar.button("🔒 Secure Logout"):
         st.session_state.logged_in = False
         st.rerun()
 
 st.title("📚 Divine Library System")
 
-# --- SEARCH BOOKS SECTION ---
+# --- SEARCH & STATS SECTION ---
 st.header("🔍 Search Books")
-search_query = st.text_input("Book naam, 'all' ya 'issued' likhen:", placeholder="Search here...").strip().lower()
+search_query = st.text_input("Book naam, 'all' ya 'issued' likhen:", placeholder="Typing here...").strip().lower()
 
+# Stats Calculation
+df = st.session_state.inventory
+total_books = len(df)
+issued_count = len(df[df['Status'] == "Issued"])
+avail_count = len(df[df['Status'] == "Available"])
+
+# Display Stats Cards
+s1, s2, s3 = st.columns(3)
+with s1: st.info(f"📁 **Total Books:** {total_books}")
+with s2: st.warning(f"📤 **Total Issued:** {issued_count}")
+with s3: st.success(f"✅ **Available:** {avail_count}")
+
+st.divider()
+
+# --- DISPLAY LOGIC ---
 if search_query:
-    df = st.session_state.inventory
-    
-    # Special Keywords Logic
+    display_df = pd.DataFrame()
     if search_query == "all":
-        st.success("Showing all books in library:")
-        st.table(df)
+        display_df = df
     elif search_query == "issued":
-        issued_books = df[df['Status'].str.lower() == "issued"]
-        if not issued_books.empty:
-            st.warning("List of currently Issued books:")
-            st.table(issued_books)
-        else:
-            st.info("Abhi koi bhi kitab issued nahi hai.")
+        display_df = df[df['Status'].str.lower() == "issued"]
     else:
-        # Normal Search Logic
-        result = df[df['Book Name'].str.contains(search_query, case=False, na=False)]
-        if not result.empty:
-            st.success(f"Result for: {search_query}")
-            st.table(result)
-        else:
-            st.error(f"❌ '{search_query}' - Book Not Found!")
+        display_df = df[df['Book Name'].str.contains(search_query, case=False, na=False)]
+
+    if not display_df.empty:
+        # Serial Number from 1
+        display_df = display_df.copy()
+        display_df.index = range(1, len(display_df) + 1)
+        st.dataframe(display_df.style.set_properties(**{'background-color': '#f9f9f9', 'color': 'black', 'border-color': 'silver'}), use_container_width=True)
+    else:
+        st.error("Book Not Found!")
 
 st.divider()
 
 # --- ADMIN OPERATIONS ---
 if st.session_state.logged_in:
-    st.header("⚙️ Admin Control Panel")
-    tab1, tab2 = st.tabs(["📲 Scan Barcode", "✍️ Manual Entry"])
-
-    with tab1:
-        cam_on = st.toggle("Turn Camera ON", value=False)
-        if cam_on:
-            scanned_data = qrcode_scanner(key='admin_scanner')
-            if scanned_data:
-                st.success(f"Scanned ID: {scanned_data}")
-        else:
-            st.info("Camera is OFF.")
-
-    with tab2:
-        st.subheader("Manual Book Update")
-        with st.form("manual_form"):
-            m_book_id = st.text_input("Book ID:")
-            m_book_name = st.text_input("Book Name:")
-            m_action = st.radio("Operation:", ["Issue", "Receive"], horizontal=True)
-            m_submit = st.form_submit_button("Save Entry")
-            if m_submit:
-                st.success("Entry Saved!")
+    st.header("⚙️ Admin Control Operations")
+    t1, t2 = st.tabs(["📲 Barcode Scan", "✍️ Manual Data Entry"])
+    
+    with t1:
+        cam = st.toggle("Activate Scanner")
+        if cam:
+            data = qrcode_scanner(key='adm_cam')
+            if data: st.write(f"Scanned: {data}")
+            
+    with t2:
+        with st.form("manual_entry"):
+            col1, col2 = st.columns(2)
+            with col1:
+                b_id = st.text_input("Book ID / Barcode:")
+                b_name = st.text_input("Book Name:")
+            with col2:
+                b_status = st.selectbox("Current Status:", ["Available", "Issued", "Received"])
+                b_loc = st.text_input("Shelf Location:")
+            
+            if st.form_submit_button("Save to Inventory"):
+                st.success(f"Successfully Added: {b_name}")
 else:
-    st.warning("🔒 Admin login required for Scan/Manual entry.")
+    st.caption("User Mode: Only Search is active.")
 
-st.divider()
-st.caption("Divine Library App | Update Date: 18-Dec-2025")
+st.markdown("---")
+st.caption(f"Divine Library | {datetime.now().strftime('%d-%b-%Y')}")
