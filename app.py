@@ -12,7 +12,16 @@ with col_l:
 with col_r:
     st.markdown("<h3 style='text-align: right;'>👤 KRISHNA SHARMA</h3>", unsafe_allow_html=True)
 
-# --- SESSION STATE ---
+# --- SAMPLE INVENTORY (Database) ---
+# Jab aap Google Sheets connect karenge, toh ye data wahan se aayega
+if "inventory" not in st.session_state:
+    st.session_state.inventory = pd.DataFrame({
+        "Book Name": ["The Alchemist", "Think and Grow Rich", "Power of Habit", "Deep Work", "Atomic Habits"],
+        "Status": ["Available", "Available", "Issued", "Available", "Issued"],
+        "Location": ["Shelf A1", "Shelf B2", "Shelf C1", "Shelf A2", "Shelf B1"]
+    })
+
+# --- SESSION STATE FOR LOGIN ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -36,36 +45,58 @@ st.title("📚 Divine Library System")
 
 # --- SEARCH BOOKS SECTION ---
 st.header("🔍 Search Books")
-search_query = st.text_input("Book naam likhen:", placeholder="Search here...")
-# (Yahan aapka search logic pehle jaisa hi rahega)
+search_query = st.text_input("Book naam, 'all' ya 'issued' likhen:", placeholder="Search here...").strip().lower()
+
+if search_query:
+    df = st.session_state.inventory
+    
+    # Special Keywords Logic
+    if search_query == "all":
+        st.success("Showing all books in library:")
+        st.table(df)
+    elif search_query == "issued":
+        issued_books = df[df['Status'].str.lower() == "issued"]
+        if not issued_books.empty:
+            st.warning("List of currently Issued books:")
+            st.table(issued_books)
+        else:
+            st.info("Abhi koi bhi kitab issued nahi hai.")
+    else:
+        # Normal Search Logic
+        result = df[df['Book Name'].str.contains(search_query, case=False, na=False)]
+        if not result.empty:
+            st.success(f"Result for: {search_query}")
+            st.table(result)
+        else:
+            st.error(f"❌ '{search_query}' - Book Not Found!")
 
 st.divider()
 
-# --- ADMIN SCAN & ACTION SECTION ---
+# --- ADMIN OPERATIONS ---
 if st.session_state.logged_in:
-    st.header("📲 Admin Operations")
-    scanned_data = qrcode_scanner(key='admin_scanner')
-    
-    if scanned_data:
-        st.success(f"Scanned Book ID: {scanned_data}")
-        
-        # Action Selection
-        action = st.radio("Select Action:", ["Issue Book", "Receive Book"])
-        
-        with st.form("action_form"):
-            if action == "Issue Book":
-                member_name = st.text_input("Member Name:")
-                due_date = st.date_input("Return Due Date:", datetime.now() + timedelta(days=7))
-                st.write("Click 'Confirm' to issue this book.")
-            else:
-                condition = st.selectbox("Book Condition:", ["Perfect", "Slightly Damaged", "Damaged"])
-                fine = st.number_input("Fine Amount (if any):", min_value=0)
-                st.write("Click 'Confirm' to return this book to shelf.")
-            
-            submitted = st.form_submit_button("Confirm Action")
-            if submitted:
-                st.balloons()
-                st.success(f"Data for {scanned_data} has been updated locally!")
-                # Note: Ye data save karne ke liye humein Google Sheets connect karni hogi.
+    st.header("⚙️ Admin Control Panel")
+    tab1, tab2 = st.tabs(["📲 Scan Barcode", "✍️ Manual Entry"])
+
+    with tab1:
+        cam_on = st.toggle("Turn Camera ON", value=False)
+        if cam_on:
+            scanned_data = qrcode_scanner(key='admin_scanner')
+            if scanned_data:
+                st.success(f"Scanned ID: {scanned_data}")
+        else:
+            st.info("Camera is OFF.")
+
+    with tab2:
+        st.subheader("Manual Book Update")
+        with st.form("manual_form"):
+            m_book_id = st.text_input("Book ID:")
+            m_book_name = st.text_input("Book Name:")
+            m_action = st.radio("Operation:", ["Issue", "Receive"], horizontal=True)
+            m_submit = st.form_submit_button("Save Entry")
+            if m_submit:
+                st.success("Entry Saved!")
 else:
-    st.warning("🔒 Scanning and Library Actions are locked. Please login as Admin.")
+    st.warning("🔒 Admin login required for Scan/Manual entry.")
+
+st.divider()
+st.caption("Divine Library App | Update Date: 18-Dec-2025")
