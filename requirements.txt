@@ -1,1 +1,1 @@
-streamlit-qr-barcode-scanner
+streamlit-qrcode-scanner
