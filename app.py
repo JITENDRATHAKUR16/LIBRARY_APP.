@@ -37,7 +37,7 @@ if search_query:
 st.divider()
 
 # --- SCAN MODE (Only for Admin) ---
-if password == "admin123":  # Aap apna password yahan badal sakte hain
+if password == "MAKE_HEROS":  # Aap apna password yahan badal sakte hain
     st.header("📲 Admin Scan Mode")
     st.success("Admin Login Successful! Camera loading...")
     
@@ -54,3 +54,4 @@ else:
 
 st.divider()
 st.caption("Divine Library App | Last Updated: Dec 2025")
+
