@@ -1,1 +1,2 @@
-streamlit-barcode-reader
+streamlit
+streamlit-qr-barcode-scanner
